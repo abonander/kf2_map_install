@@ -1,5 +1,3 @@
-#![feature(result_expect)]
-
 extern crate hyper;
 
 use hyper::client::Client;
@@ -77,11 +75,16 @@ fn download_map_file(client: &mut Client, map_name: &str, map_folder: &Path) {
     let maybe_file_size = res.headers.get::<ContentLength>()
         .map(|&ContentLength(len)| len);
 
+    let mut download_file = DownloadFile {
+        path: &map_path,
+        completed: false,
+    };
+
     if let Some(file_size) = maybe_file_size {
         let size_kb = file_size as f64 / 1000.0;
         println!("{:.2} KB", size_kb);
 
-        let mut map_file = File::create(map_path)
+        let mut map_file = File::create(&map_path)
             .expect("Error opening map file for writing: ");
 
         let mut progress_bar = ProgressBar {
@@ -100,7 +103,7 @@ fn download_map_file(client: &mut Client, map_name: &str, map_folder: &Path) {
     } else {
         println!("unknown.");
 
-        let mut map_file = File::create(map_path)
+        let mut map_file = File::create(&map_path)
             .expect("Error opening map file for writing: ");
 
         copy_with_cb(&mut res, &mut map_file, |so_far| {
@@ -109,6 +112,8 @@ fn download_map_file(client: &mut Client, map_name: &str, map_folder: &Path) {
             print!("\rDownloaded: {:.2} KB", so_far_kb);
         }).unwrap();
     }
+
+    download_file.completed = true;
 
     // Clear line and return cursor to start
     print!("\r\x1b[K");
@@ -174,3 +179,16 @@ impl fmt::Display for ProgressBar {
     }
 }
 
+struct DownloadFile<'a> {
+    path: &'a Path,
+    completed: bool,
+}
+
+impl<'a> Drop for DownloadFile<'a> {
+    fn drop(&mut self) {
+        if !self.completed && fs::metadata(self.path).is_ok() {
+            println!("\nDeleting incomplete file...");
+            fs::remove_file(self.path);
+        }
+    }
+}
