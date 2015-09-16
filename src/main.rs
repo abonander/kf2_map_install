@@ -118,7 +118,7 @@ fn update_config(kf2_config: &mut File, map_name: &str) {
     write!(
         kf2_config, 
         "
-[{0} MapSummary]
+[{0} KFMapSummary]
 MapName={0}
 ScreenshotPathName=UI_MapPreview_TEX.UI_MapPreview_Placeholder
         ",
